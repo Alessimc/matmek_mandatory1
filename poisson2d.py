@@ -46,7 +46,13 @@ class Poisson2D:
 
     def laplace(self):
         """Return vectorized Laplace operator"""
-        raise NotImplementedError
+        N = self.xij.shape[0] # nr of grid points based on mesh
+        dx = self.xij[1] - self.xij[0]
+        dy = self.yij[1] - self.yij[0]
+        D2x = (1./dx**2)*self.D2()
+        D2y = (1./dy**2)*self.D2()
+        return (sparse.kron(D2x, sparse.eye(N)) +
+                sparse.kron(sparse.eye(N), D2y))
 
     def get_boundary_indices(self):
         """Return indices of vectorized matrix that belongs to the boundary"""
