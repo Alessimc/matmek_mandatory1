@@ -56,7 +56,11 @@ class Poisson2D:
 
     def get_boundary_indices(self):
         """Return indices of vectorized matrix that belongs to the boundary"""
-        raise NotImplementedError
+        N = self.xij.shape[0]
+        B = np.ones((N+1, N+1), dtype=bool)
+        B[1:-1, 1:-1] = 0
+        bnds = np.where(B.ravel() == 1)[0]
+        return bnds
 
     def assemble(self):
         """Return assembled matrix A and right hand side vector b"""
