@@ -38,7 +38,11 @@ class Poisson2D:
 
     def D2(self):
         """Return second order differentiation matrix"""
-        raise NotImplementedError
+        N = self.xij.shape[0] # nr of grid points based on mesh
+        D = sparse.diags([1, -2, 1], [-1, 0, 1], (N, N), 'lil')
+        D[0, :4] = 2, -5, 4, -1
+        D[-1, -4:] = -1, 4, -5, 2
+        return D
 
     def laplace(self):
         """Return vectorized Laplace operator"""
