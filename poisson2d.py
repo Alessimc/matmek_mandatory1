@@ -1,6 +1,7 @@
 import numpy as np
 import sympy as sp
 import scipy.sparse as sparse
+from scipy.interpolate import interpn
 
 x, y = sp.symbols('x,y')
 
@@ -32,44 +33,69 @@ class Poisson2D:
 
     def create_mesh(self, N):
         """Create 2D mesh and store in self.xij and self.yij"""
+        self.N = N
         x = np.linspace(0, self.L, N+1)
         y = np.linspace(0, self.L, N+1)
+        self.x_grid = x # for interpolation later
+        self.y_grid = y
         self.xij, self.yij = np.meshgrid(x, y, indexing='ij')
+        self.h = self.L / N  # mesh step size
+        return self.xij, self.yij
 
     def D2(self):
         """Return second order differentiation matrix"""
-        N = self.xij.shape[0] # nr of grid points based on mesh
-        D = sparse.diags([1, -2, 1], [-1, 0, 1], (N, N), 'lil')
+        D = sparse.diags([1, -2, 1], [-1, 0, 1], (self.N+1, self.N+1), 'lil')
         D[0, :4] = 2, -5, 4, -1
         D[-1, -4:] = -1, 4, -5, 2
         return D
 
     def laplace(self):
         """Return vectorized Laplace operator"""
-        N = self.xij.shape[0] # nr of grid points based on mesh
-        dx = self.xij[1] - self.xij[0]
-        dy = self.yij[1] - self.yij[0]
-        D2x = (1./dx**2)*self.D2()
-        D2y = (1./dy**2)*self.D2()
-        return (sparse.kron(D2x, sparse.eye(N)) +
-                sparse.kron(sparse.eye(N), D2y))
+
+        D2x = (1./self.h**2)*self.D2()
+        D2y = (1./self.h**2)*self.D2()
+        return (sparse.kron(D2x, sparse.eye(self.N+1)) +
+                sparse.kron(sparse.eye(self.N+1), D2y))
 
     def get_boundary_indices(self):
         """Return indices of vectorized matrix that belongs to the boundary"""
-        N = self.xij.shape[0]
-        B = np.ones((N+1, N+1), dtype=bool)
+        B = np.ones((self.N+1, self.N+1), dtype=bool)
         B[1:-1, 1:-1] = 0
         bnds = np.where(B.ravel() == 1)[0]
         return bnds
 
     def assemble(self):
         """Return assembled matrix A and right hand side vector b"""
-        # return A, b
-        raise NotImplementedError
+        N = self.N+1  # including boundaries
+        lap = self.laplace()
+        
+        # Vectorized grid points for x and y
+        f_vals = np.vectorize(sp.lambdify((x, y), self.f))(self.xij, self.yij)
+        
+        # Flatten the source term and apply step size scaling
+        b = f_vals.ravel()
+        
+        # Apply Dirichlet boundary conditions
+        bnds = self.get_boundary_indices()
+        A = lap.tolil()
+
+        # Modify A and b to account for boundary conditions
+        for idx in bnds:
+            A[idx, :] = 0
+            A[idx, idx] = 1
+            b[idx] = np.vectorize(sp.lambdify((x, y), self.ue))(self.xij.ravel()[idx], self.yij.ravel()[idx])
+
+        return A, b
 
     def l2_error(self, u):
         """Return l2-error norm"""
-        raise NotImplementedError
+        # Evaluate exact solution on the grid
+        u_exact = np.vectorize(sp.lambdify((x, y), self.ue))(self.xij, self.yij)
+        
+        # Compute error and L2 norm
+        error = u - u_exact
+        l2_norm = np.sqrt(np.sum(error**2) * self.h**2) 
+        return l2_norm
 
     def __call__(self, N):
         """Solve Poisson's equation.
@@ -86,6 +112,7 @@ class Poisson2D:
         """
         self.create_mesh(N)
         A, b = self.assemble()
+        A = A.tocsr()
         self.U = sparse.linalg.spsolve(A, b.flatten()).reshape((N+1, N+1))
         return self.U
 
@@ -128,7 +155,13 @@ class Poisson2D:
         The value of u(x, y)
 
         """
-        raise NotImplementedError
+        point = [x, y]
+        grid_points = (self.x_grid, self.y_grid)
+
+        # cubic interpolation using interpn
+        u = interpn(grid_points, self.U, point, method='cubic')
+
+        return u
 
 def test_convergence_poisson2d():
     # This exact solution is NOT zero on the entire boundary
@@ -144,3 +177,8 @@ def test_interpolation():
     assert abs(sol.eval(0.52, 0.63) - ue.subs({x: 0.52, y: 0.63}).n()) < 1e-3
     assert abs(sol.eval(sol.h/2, 1-sol.h/2) - ue.subs({x: sol.h/2, y: 1-sol.h/2}).n()) < 1e-3
 
+
+# testing
+
+test_convergence_poisson2d()
+test_interpolation()
