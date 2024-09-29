@@ -10,12 +10,18 @@ class Wave2D:
 
     def create_mesh(self, N, sparse=False):
         """Create 2D mesh and store in self.xij and self.yij"""
-        # self.xji, self.yij = ...
-        raise NotImplementedError
+        x = np.linspace(0, self.L, N+1)
+        y = np.linspace(0, self.L, N+1)
+
+        self.xij, self.yij = np.meshgrid(x, y, indexing='ij')
+        self.h = self.L / N  # mesh step size
 
     def D2(self, N):
         """Return second order differentiation matrix"""
-        raise NotImplementedError
+        D = sparse.diags([1, -2, 1], [-1, 0, 1], (N+1, N+1), 'lil')
+        D[0, :4] = 2, -5, 4, -1
+        D[-1, -4:] = -1, 4, -5, 2
+        return D
 
     @property
     def w(self):
