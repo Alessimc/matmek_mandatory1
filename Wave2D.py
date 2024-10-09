@@ -31,7 +31,7 @@ class Wave2D:
         """Return the dispersion coefficient"""
         k_x = self.mx * sp.pi
         k_y = self.my * sp.pi
-        w = sp.sqrt( self.c * (k_x**2 + k_y **2))
+        w = self.c * sp.sqrt((k_x**2 + k_y **2))
         return w
 
     def ue(self, mx, my):
@@ -190,20 +190,20 @@ class Wave2D:
 
 class Wave2D_Neumann(Wave2D):
 
-    # def D2(self, N):
-    #     raise NotImplementedError
+    def D2(self, N):
+        """Return second order differentiation matrix"""
+        D = sparse.diags([1, -2, 1], [-1, 0, 1], (N+1, N+1), 'lil')
+        D[0, :2] = -2, 2
+        D[-1, -2:] = 2, -2
+        return D
 
     def ue(self, mx, my):
         # Dirichlet real stationary wave solution (eq.q 1.5) where k = m*pi
         return sp.cos(mx*sp.pi*x)*sp.cos(my*sp.pi*y)*sp.cos(self.w*t)
 
     def apply_bcs(self):
-        """Neumann boundary conditions (second-order accurate)"""
-        self.Unp1[0, :] = 4/3 * self.Unp1[1, :] - 1/3 * self.Unp1[2, :]
-        self.Unp1[-1, :] = 4/3 * self.Unp1[-2, :] - 1/3 * self.Unp1[-3, :]
-
-        self.Unp1[:, 0] = 4/3 * self.Unp1[:, 1] - 1/3 * self.Unp1[:, 2]
-        self.Unp1[:, -1] = 4/3 * self.Unp1[:, -2] - 1/3 * self.Unp1[:, -3]
+        # moved setting if boundary conditions to D2
+        pass
 
 
 def test_convergence_wave2d():
@@ -218,66 +218,68 @@ def test_convergence_wave2d_neumann():
 
 def test_exact_wave2d():
     CFL = 1 / np.sqrt(2)
+    mx = my = 2
+
     sol = Wave2D()
-    r, E, h = sol.convergence_rates(cfl=CFL, mx=1, my=1)
-    print(r)
-    # assert abs(r[-1]-2) < 1e-12
+    h, l2_e = sol(N=100, Nt=10 , cfl=CFL, mx=mx, my=my, store_data=-1)
+    # print(l2_e[])
+    assert l2_e[-1] < 1e-12
 
     solN = Wave2D_Neumann()
-    r, E, h = solN.convergence_rates(cfl=CFL, mx=1, my=1)
-    print(r)
-    # assert abs(r[-1]-2) < 1e-12
+    h, l2_e = sol(N=100, Nt=10 , cfl=CFL, mx=mx, my=my, store_data=-1)
+    assert l2_e[-1] < 1e-12
+    
     
 
 
 if __name__ == '__main__':
     # tests
-    # test_convergence_wave2d()
-    # test_convergence_wave2d_neumann()
+    test_convergence_wave2d()
+    test_convergence_wave2d_neumann()
     test_exact_wave2d()
 
-    # N = 200
-    # Nt = 200
-    # cfl = 1 / np.sqrt(2)
-    # mx = 2
-    # my = 2
+    N = 200
+    Nt = 200
+    cfl = 1 / np.sqrt(2)
+    mx = 2
+    my = 2
 
-    # wave = Wave2D_Neumann()
-    # plotdata = wave(N, Nt, cfl=cfl, mx=mx, my=my, store_data=200)
+    wave = Wave2D_Neumann()
+    plotdata = wave(N, Nt, cfl=cfl, mx=mx, my=my, store_data=200)
 
-    # # Neumann MOVIE
-    # xij = wave.xij
-    # yij = wave.yij
-    # fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
-    # frames = []
-    # for n, val in plotdata.items():
-    #     if n % 2 == 0:
-    #         frame = ax.plot_surface(xij, yij, val, vmin=-0.5*plotdata[0].max(),
-    #                             vmax=plotdata[0].max(), cmap=cm.ocean,
-    #                             linewidth=.5, antialiased=False)
-    #         frames.append([frame])
+    # Neumann MOVIE
+    xij = wave.xij
+    yij = wave.yij
+    fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
+    frames = []
+    for n, val in plotdata.items():
+        if n % 2 == 0:
+            frame = ax.plot_surface(xij, yij, val, vmin=-0.5*plotdata[0].max(),
+                                vmax=plotdata[0].max(), cmap=cm.ocean,
+                                linewidth=.5, antialiased=False)
+            frames.append([frame])
 
-    # ani = animation.ArtistAnimation(fig, frames, interval=600, blit=True,
-    #                                 repeat_delay=1000)
+    ani = animation.ArtistAnimation(fig, frames, interval=600, blit=True,
+                                    repeat_delay=1000)
     # ani.save('report/wavemovie_neumann.gif', writer='pillow', fps=30)
 
-    # # Dirichlet MOVIE
-    # wave = Wave2D()
-    # plotdata = wave(N, Nt, cfl=cfl, mx=mx, my=my, store_data=200)
+    # Dirichlet MOVIE
+    wave = Wave2D()
+    plotdata = wave(N, Nt, cfl=cfl, mx=mx, my=my, store_data=200)
 
-    # # Neumann MOVIE
-    # xij = wave.xij
-    # yij = wave.yij
-    # fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
-    # frames = []
-    # for n, val in plotdata.items():
-    #     if n % 2 == 0:
-    #         frame = ax.plot_surface(xij, yij, val, vmin=-0.5*plotdata[0].max(),
-    #                             vmax=plotdata[0].max(), cmap=cm.ocean,
-    #                             linewidth=.5, antialiased=False)
-    #         frames.append([frame])
+    # Neumann MOVIE
+    xij = wave.xij
+    yij = wave.yij
+    fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
+    frames = []
+    for n, val in plotdata.items():
+        if n % 2 == 0:
+            frame = ax.plot_surface(xij, yij, val, vmin=-0.5*plotdata[0].max(),
+                                vmax=plotdata[0].max(), cmap=cm.ocean,
+                                linewidth=.5, antialiased=False)
+            frames.append([frame])
 
-    # ani = animation.ArtistAnimation(fig, frames, interval=600, blit=True,
-    #                                 repeat_delay=1000)
+    ani = animation.ArtistAnimation(fig, frames, interval=600, blit=True,
+                                    repeat_delay=1000)
     # ani.save('report/wavemovie_dirichlet.gif', writer='pillow', fps=30)
 
