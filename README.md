@@ -4,16 +4,13 @@ Change to your own fork's badge:
 
 # Poisson's Equation and Stationary Waves
 
-<div style="display: flex; justify-content: space-between;">
-
-  <div>
-    <h3>Title for GIF 1</h3>
-    <img src="report/wavemovie_dirichlet.gif" alt="Dirichlet Wave" width="300"/>
+<div style="display: flex; align-items: flex-start; gap: 10px;">
+  <div style="display: inline-block; text-align: center;">
+    <h3>Dirichlet Wave/h3>
+    <img src="report/wavemovie_dirichlet.gif" alt="Title for GIF 1" width="300"/>
   </div>
-
-  <div>
-    <h3>Title for GIF 2</h3>
-    <img src="report/wavemovie_neumann.gif" alt="Neumann Wave" width="300"/>
+  <div style="display: inline-block; text-align: center;">
+    <h3>Neumann Wave</h3>
+    <img src="report/wavemovie_neumann.gif" alt="Title for GIF 2" width="300"/>
   </div>
-
 </div>
